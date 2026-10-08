@@ -6,12 +6,15 @@
     <title>Salvar e Visualizar Texto</title>
     <style>
         body { font-family: Arial, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; }
-        input { width: 70%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
+        input { width: 65%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; }
         button:hover { background-color: #0056b3; }
         ul { margin-top: 20px; padding-left: 0; list-style-type: none; }
         li { padding: 10px; border-bottom: 1px solid #eee; background-color: #f9f9f9; margin-bottom: 5px; border-radius: 4px; font-size: 16px; }
     </style>
+    <!-- Carrega a biblioteca do Firebase de forma direta e global -->
+    <script src="https://gstatic.com"></script>
+    <script src="https://gstatic.com"></script>
 </head>
 <body>
 
@@ -23,15 +26,12 @@
     <h3>Textos Salvos:</h3>
     <ul id="listaTextos"></ul>
 
-    <!-- Scripts Atualizados para Compatibilidade Global -->
-    <script type="module">
-        import { initializeApp } from "https://gstatic.com";
-        import { getDatabase, ref, push, onValue } from "https://gstatic.com";
-
+    <script>
+        // Suas credenciais do Firebase obtidas anteriormente
         const firebaseConfig = {
             apiKey: "AIzaSyBOiY5IW487iEXxubv4068",
             authDomain: "://firebaseapp.com",
-            databaseURL: "https://transcricao-ingles-default-rtdb.firebaseio.com",
+            databaseURL: "https://firebaseio.com",
             projectId: "transcricao-ingles",
             storageBucket: "://appspot.com",
             messagingSenderId: "1059422828935",
@@ -39,38 +39,39 @@
             measurementId: "G-LRZT09B73F"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const database = getDatabase(app);
-        const bancoRef = ref(database, 'textos');
+        // Inicializa o Firebase globalmente
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const bancoRef = database.ref('textos');
 
         const input = document.getElementById('meuInput');
         const botao = document.getElementById('btnEnviar');
         const lista = document.getElementById('listaTextos');
 
+        // Enviar dados para o banco
         botao.addEventListener('click', () => {
             const texto = input.value.trim();
             
             if (texto !== "") {
-                push(bancoRef, {
+                bancoRef.push({
                     conteudo: texto,
                     timestamp: Date.now()
                 })
                 .then(() => {
-                    input.value = ""; 
+                    input.value = ""; // Limpa o input se der certo
                 })
                 .catch((erro) => {
-                    alert("Erro ao salvar! Verifique as regras do Firebase.");
+                    alert("Erro de permissão no Firebase. Verifique as regras!");
                     console.error(erro);
                 });
             }
         });
 
-        onValue(bancoRef, (snapshot) => {
+        // Ouvir o banco em tempo real e mostrar na tela
+        bancoRef.on('value', (snapshot) => {
             lista.innerHTML = ""; 
-            
             if (snapshot.exists()) {
                 const dados = snapshot.val();
-                
                 Object.values(dados).forEach(item => {
                     const li = document.createElement('li');
                     li.textContent = item.conteudo;
