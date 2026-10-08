@@ -10,31 +10,28 @@
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; }
         button:hover { background-color: #0056b3; }
         ul { margin-top: 20px; padding-left: 0; list-style-type: none; }
-        li { padding: 10px; border-bottom: 1px solid #eee; background-color: #f9f9f9; margin-bottom: 5px; border-radius: 4px; }
+        li { padding: 10px; border-bottom: 1px solid #eee; background-color: #f9f9f9; margin-bottom: 5px; border-radius: 4px; font-size: 16px; }
     </style>
 </head>
 <body>
 
     <h2>Salvar Texto no Banco de Dados</h2>
     
-    <!-- Campo de entrada e botão -->
     <input type="text" id="meuInput" placeholder="Digite algo aqui...">
     <button id="btnEnviar">Enviar</button>
 
     <h3>Textos Salvos:</h3>
-    <!-- Lista onde os textos vão aparecer -->
     <ul id="listaTextos"></ul>
 
-    <!-- Configuração e Lógica do Firebase -->
+    <!-- Scripts Atualizados para Compatibilidade Global -->
     <script type="module">
         import { initializeApp } from "https://gstatic.com";
         import { getDatabase, ref, push, onValue } from "https://gstatic.com";
 
-        // Credenciais extraídas do seu print ⬇️
         const firebaseConfig = {
             apiKey: "AIzaSyBOiY5IW487iEXxubv4068",
             authDomain: "://firebaseapp.com",
-            databaseURL: "https://firebaseio.com",
+            databaseURL: "https://transcricao-ingles-default-rtdb.firebaseio.com",
             projectId: "transcricao-ingles",
             storageBucket: "://appspot.com",
             messagingSenderId: "1059422828935",
@@ -42,7 +39,6 @@
             measurementId: "G-LRZT09B73F"
         };
 
-        // Inicializa o Firebase
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
         const bancoRef = ref(database, 'textos');
@@ -51,30 +47,30 @@
         const botao = document.getElementById('btnEnviar');
         const lista = document.getElementById('listaTextos');
 
-        // 1. FUNÇÃO PARA ENVIAR O TEXTO (Ao clicar no botão)
         botao.addEventListener('click', () => {
             const texto = input.value.trim();
             
             if (texto !== "") {
                 push(bancoRef, {
                     conteudo: texto,
-                    data: new Date().toLocaleString()
+                    timestamp: Date.now()
                 })
                 .then(() => {
-                    input.value = ""; // Limpa o campo após enviar
+                    input.value = ""; 
                 })
-                .catch((erro) => console.error("Erro ao salvar:", erro));
+                .catch((erro) => {
+                    alert("Erro ao salvar! Verifique as regras do Firebase.");
+                    console.error(erro);
+                });
             }
         });
 
-        // 2. FUNÇÃO PARA MOSTRAR OS TEXTOS (Roda ao abrir a página e atualiza em tempo real)
         onValue(bancoRef, (snapshot) => {
-            lista.innerHTML = ""; // Limpa a lista na tela antes de atualizar
+            lista.innerHTML = ""; 
             
             if (snapshot.exists()) {
                 const dados = snapshot.val();
                 
-                // Transforma o objeto do Firebase em uma lista e exibe na tela
                 Object.values(dados).forEach(item => {
                     const li = document.createElement('li');
                     li.textContent = item.conteudo;
