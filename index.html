@@ -68,7 +68,7 @@
             }
         });
 
-        // Função para LER os dados da Planilha e jogar na tela
+        // Função para LER os dados da Planilha e jogar na tela (CORRIGIDA)
         function carregarDados() {
             lista.innerHTML = "<li>Carregando histórico...</li>";
             
@@ -76,25 +76,34 @@
             .then(res => res.text())
             .then(textotsv => {
                 lista.innerHTML = "";
-                const linhas = textotsv.split("\n");
                 
-                // Pula a primeira linha (cabeçalho) e lê o resto
+                // CORREÇÃO: Divide as linhas aceitando tanto \n quanto \r\n
+                const linhas = textotsv.split(/\r?\n/);
+                
                 let temDados = false;
+                
+                // Começa do 1 para pular os títulos da planilha ("Carimbo de data/hora" e "Texto")
                 for (let i = 1; i < linhas.length; i++) {
+                    if (linhas[i].trim() === "") continue; // Ignora linhas em branco
+                    
                     const colunas = linhas[i].split("\t");
+                    
+                    // Se a segunda coluna (índice 1) existir e não estiver vazia
                     if (colunas[1] && colunas[1].trim() !== "") {
                         const li = document.createElement('li');
-                        li.textContent = colunas[1].trim(); // Pega a coluna do Texto
-                        lista.insertBefore(li, lista.firstChild); // Mostra os mais recentes no topo
+                        li.textContent = colunas[1].trim(); // Adiciona o texto enviado
+                        lista.insertBefore(li, lista.firstChild); // Coloca o mais recente no topo
                         temDados = true;
                     }
                 }
+                
                 if (!temDados) {
                     lista.innerHTML = "<li>Nenhum texto salvo ainda.</li>";
                 }
             })
             .catch(err => {
-                lista.innerHTML = "<li>Nenhum texto salvo ainda ou planilha não publicada.</li>";
+                lista.innerHTML = "<li>Erro ao carregar os dados. Verifique a publicação da planilha.</li>";
+                console.error(err);
             });
         }
     </script>
