@@ -3,75 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salvar e Visualizar Texto</title>
+    <title>Salvar Texto na Planilha</title>
     <style>
         body { font-family: Arial, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; }
         input { width: 65%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; }
-        button:hover { background-color: #0056b3; }
-        ul { margin-top: 20px; padding-left: 0; list-style-type: none; }
-        li { padding: 10px; border-bottom: 1px solid #eee; background-color: #f9f9f9; margin-bottom: 5px; border-radius: 4px; font-size: 16px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #28a745; color: white; border: none; border-radius: 4px; }
+        button:hover { background-color: #218838; }
     </style>
-    <!-- Carrega a biblioteca do Firebase de forma direta e global -->
-    <script src="https://gstatic.com"></script>
-    <script src="https://gstatic.com"></script>
 </head>
 <body>
 
-    <h2>Salvar Texto no Banco de Dados</h2>
+    <h2>Salvar Texto na Planilha</h2>
     
     <input type="text" id="meuInput" placeholder="Digite algo aqui...">
     <button id="btnEnviar">Enviar</button>
 
-    <h3>Textos Salvos:</h3>
-    <ul id="listaTextos"></ul>
-
     <script>
-        // Suas credenciais do Firebase obtidas anteriormente
-        const firebaseConfig = {
-            apiKey: "AIzaSyBOiY5IW487iEXxubv4068",
-            authDomain: "://firebaseapp.com",
-            databaseURL: "https://firebaseio.com",
-            projectId: "transcricao-ingles",
-            storageBucket: "://appspot.com",
-            messagingSenderId: "1059422828935",
-            appId: "1:1059422828935:web:410bcb73",
-            measurementId: "G-LRZT09B73F"
-        };
-
-        // Inicializa o Firebase globalmente
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        const bancoRef = database.ref('textos');
-
+        // ⚠️ SUBSTITUA COM O LINK DO SEU FORMULÁRIO (Mantenha o /formResponse no final!)
+        //const URL_FORMULARIO = "";
+        const URL_FORMULARIO = "https://docs.google.com/forms/d/e/1FAIpQLSc2Ss9rLVimE5sBlMu_oDsoM4yW0frAusOtZQxIDa-Us3eKFw/formResponse";
+        
+        
+        // ⚠️ SUBSTITUA COM O NÚMERO DA SUA ENTRY DO GOOGLE
+        //const ID_CAMPO_TEXTO = "entry.123456789"; 
+        const ID_CAMPO_TEXTO = "entry.730854788";
+        
         const input = document.getElementById('meuInput');
         const botao = document.getElementById('btnEnviar');
-        const lista = document.getElementById('listaTextos');
 
-        // Enviar dados para o banco
         botao.addEventListener('click', () => {
             const texto = input.value.trim();
-            
             if (texto !== "") {
-                bancoRef.push({
-                    conteudo: texto,
-                    timestamp: Date.now()
+                botao.innerText = "Enviando...";
+                botao.disabled = true;
+
+                const dados = new FormData();
+                dados.append(ID_CAMPO_TEXTO, texto);
+
+                // Envia direto para a planilha do Google de forma invisível
+                fetch(URL_FORMULARIO, {
+                    method: "POST",
+                    mode: "no-cors",
+                    body: dados
                 })
                 .then(() => {
-                    input.value = ""; // Limpa o input se der certo
+                    input.value = ""; // Limpa a tela
+                    botao.innerText = "Enviar";
+                    botao.disabled = false;
+                    alert("Enviado com sucesso! Olhe sua planilha.");
                 })
-                .catch((erro) => {
-                    alert("Erro de permissão no Firebase. Verifique as regras!");
-                    console.error(erro);
+                .catch(erro => {
+                    alert("Erro ao conectar.");
+                    botao.innerText = "Enviar";
+                    botao.disabled = false;
                 });
             }
         });
+    </script>
+</body>
+</html>
+onteudo: texto,
+                    data: new Date().toLocaleString()
+                })
+                .then(() => {
+                    input.value = ""; // Limpa o campo após enviar
+                })
+                .catch((erro) => console.error("Erro ao salvar:", erro));
+            }
+        });
 
-        // Ouvir o banco em tempo real e mostrar na tela
-        bancoRef.on('value', (snapshot) => {
-            lista.innerHTML = ""; 
+        // 2. FUNÇÃO PARA MOSTRAR OS TEXTOS (Roda ao abrir a página e atualiza em tempo real)
+        onValue(bancoRef, (snapshot) => {
+            lista.innerHTML = ""; // Limpa a lista na tela antes de atualizar
+            
             if (snapshot.exists()) {
                 const dados = snapshot.val();
+                
+                // Transforma o objeto do Firebase em uma lista e exibe na tela
                 Object.values(dados).forEach(item => {
                     const li = document.createElement('li');
                     li.textContent = item.conteudo;
