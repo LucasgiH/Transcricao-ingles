@@ -72,7 +72,9 @@
         function carregarDados() {
             lista.innerHTML = "<li>Carregando histórico...</li>";
             
-            fetch(URL_LEITURA_PLANILHA)
+            //fetch(URL_LEITURA_PLANILHA)
+            // Substitua a linha antiga por esta:
+            fetch(URL_LEITURA_PLANILHA + "&cachebust=" + Date.now())
             .then(res => res.text())
             .then(textotsv => {
                 lista.innerHTML = "";
