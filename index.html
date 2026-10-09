@@ -62,33 +62,3 @@
     </script>
 </body>
 </html>
-onteudo: texto,
-                    data: new Date().toLocaleString()
-                })
-                .then(() => {
-                    input.value = ""; // Limpa o campo após enviar
-                })
-                .catch((erro) => console.error("Erro ao salvar:", erro));
-            }
-        });
-
-        // 2. FUNÇÃO PARA MOSTRAR OS TEXTOS (Roda ao abrir a página e atualiza em tempo real)
-        onValue(bancoRef, (snapshot) => {
-            lista.innerHTML = ""; // Limpa a lista na tela antes de atualizar
-            
-            if (snapshot.exists()) {
-                const dados = snapshot.val();
-                
-                // Transforma o objeto do Firebase em uma lista e exibe na tela
-                Object.values(dados).forEach(item => {
-                    const li = document.createElement('li');
-                    li.textContent = item.conteudo;
-                    lista.appendChild(li);
-                });
-            } else {
-                lista.innerHTML = "<li>Nenhum texto salvo ainda.</li>";
-            }
-        });
-    </script>
-</body>
-</html>
