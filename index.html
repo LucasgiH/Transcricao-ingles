@@ -3,34 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salvar Texto na Planilha</title>
+    <title>Salvar e Visualizar com Planilha</title>
     <style>
         body { font-family: Arial, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; }
         input { width: 65%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #28a745; color: white; border: none; border-radius: 4px; }
-        button:hover { background-color: #218838; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; }
+        button:hover { background-color: #0056b3; }
+        ul { margin-top: 20px; padding-left: 0; list-style-type: none; }
+        li { padding: 10px; border-bottom: 1px solid #eee; background-color: #f9f9f9; margin-bottom: 5px; border-radius: 4px; font-size: 16px; }
     </style>
 </head>
 <body>
 
-    <h2>Salvar Texto na Planilha</h2>
+    <h2>Salvar Texto no Banco de Dados (Planilha)</h2>
     
     <input type="text" id="meuInput" placeholder="Digite algo aqui...">
     <button id="btnEnviar">Enviar</button>
 
+    <h3>Textos Salvos:</h3>
+    <ul id="listaTextos"></ul>
+
     <script>
-        // ⚠️ SUBSTITUA COM O LINK DO SEU FORMULÁRIO (Mantenha o /formResponse no final!)
-        //const URL_FORMULARIO = "";
-        const URL_FORMULARIO = "https://docs.google.com/forms/d/e/1FAIpQLSc2Ss9rLVimE5sBlMu_oDsoM4yW0frAusOtZQxIDa-Us3eKFw/formResponse";
-        
-        
-        // ⚠️ SUBSTITUA COM O NÚMERO DA SUA ENTRY DO GOOGLE
-        //const ID_CAMPO_TEXTO = "entry.123456789"; 
-        const ID_CAMPO_TEXTO = "entry.730854788";
-        
+        // Link de envio do Formulário
+        const URL_FORMULARIO = "https://google.com";
+        const ID_CAMPO_TEXTO = "entry.1287113166"; 
+
+        // Link de LEITURA da Planilha (Convertido para formato aberto TSV)
+        const URL_LEITURA_PLANILHA = "https://google.com";
+
         const input = document.getElementById('meuInput');
         const botao = document.getElementById('btnEnviar');
+        const lista = document.getElementById('listaTextos');
 
+        // Carrega os dados assim que abre a página
+        window.onload = carregarDados;
+
+        // Função para ENVIAR o texto
         botao.addEventListener('click', () => {
             const texto = input.value.trim();
             if (texto !== "") {
@@ -40,25 +48,55 @@
                 const dados = new FormData();
                 dados.append(ID_CAMPO_TEXTO, texto);
 
-                // Envia direto para a planilha do Google de forma invisível
                 fetch(URL_FORMULARIO, {
                     method: "POST",
                     mode: "no-cors",
                     body: dados
                 })
                 .then(() => {
-                    input.value = ""; // Limpa a tela
+                    input.value = ""; 
                     botao.innerText = "Enviar";
                     botao.disabled = false;
-                    alert("Enviado com sucesso! Olhe sua planilha.");
+                    // Recarrega a lista na tela logo após enviar
+                    setTimeout(carregarDados, 1000); 
                 })
                 .catch(erro => {
-                    alert("Erro ao conectar.");
+                    alert("Erro ao enviar.");
                     botao.innerText = "Enviar";
                     botao.disabled = false;
                 });
             }
         });
+
+        // Função para LER os dados da Planilha e jogar na tela
+        function carregarDados() {
+            lista.innerHTML = "<li>Carregando histórico...</li>";
+            
+            fetch(URL_LEITURA_PLANILHA)
+            .then(res => res.text())
+            .then(textotsv => {
+                lista.innerHTML = "";
+                const linhas = textotsv.split("\n");
+                
+                // Pula a primeira linha (cabeçalho) e lê o resto
+                let temDados = false;
+                for (let i = 1; i < linhas.length; i++) {
+                    const colunas = linhas[i].split("\t");
+                    if (colunas[1] && colunas[1].trim() !== "") {
+                        const li = document.createElement('li');
+                        li.textContent = colunas[1].trim(); // Pega a coluna do Texto
+                        lista.insertBefore(li, lista.firstChild); // Mostra os mais recentes no topo
+                        temDados = true;
+                    }
+                }
+                if (!temDados) {
+                    lista.innerHTML = "<li>Nenhum texto salvo ainda.</li>";
+                }
+            })
+            .catch(err => {
+                lista.innerHTML = "<li>Nenhum texto salvo ainda ou planilha não publicada.</li>";
+            });
+        }
     </script>
 </body>
 </html>
