@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Validador de Palavras Individuais</title>
+    <title>Validador de Palavras com Contador</title>
     <style>
         body { font-family: Arial, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; }
         input { width: 65%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
@@ -12,12 +12,17 @@
         ul { margin-top: 20px; padding-left: 0; list-style-type: none; }
         li { padding: 10px; border-bottom: 1px solid #eee; background-color: #f9f9f9; margin-bottom: 5px; border-radius: 4px; font-size: 16px; }
         .erro { color: red; font-size: 14px; margin-top: 5px; min-height: 20px; }
+        /* Estilo do Contador */
+        .painel-contador { background-color: #e2f0d9; border: 1px solid #b5d5a7; padding: 15px; border-radius: 4px; margin-bottom: 20px; font-weight: bold; font-size: 18px; color: #385723; text-align: center; }
     </style>
 </head>
 <body>
 
     <h2>Salvar Texto no Banco de Dados (Planilha)</h2>
     
+    <!-- Painel Visual do Contador -->
+    <div id="painelContador" class="painel-contador">Contando palavras...</div>
+
     <input type="text" id="meuInput" placeholder="Digite uma ou mais palavras...">
     <button id="btnEnviar">Enviar</button>
     <div id="mensagemErro" class="erro"></div>
@@ -31,18 +36,53 @@
         const ID_CAMPO_TEXTO = "entry.730854788"; 
         const URL_LEITURA_PLANILHA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRYukjKYJc15KobhiHyW7xdE70ZoCAqgC2XykcyiRYtkBoRzWxKpIG612ljXAkcGny7ImtGjjTvYkuD/pub?output=tsv";
 
+        // ⚠️ TEX
+
         // ⚠️ TEXTO MESTRE DE REFERÊNCIA
         const TEXTO_MESTRE = "hello world oi tudo bem este é um texto de exemplo para a transcrição em ingles";
 
-        // Lista de controle que conterá apenas PALAVRAS puras já enviadas
+        // Função auxiliar para quebrar um texto em palavras únicas puras e sem pontuação
+        function extrairPalavrasUnicas(texto) {
+            const listaBruta = texto.toLowerCase()
+                                    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"")
+                                    .split(/\s+/);
+            const filtrada = [];
+            listaBruta.forEach(p => {
+                if (p !== "" && !filtrada.includes(p)) {
+                    filtrada.push(p);
+                }
+            });
+            return filtrada;
+        }
+
+        // Descobre o total de palavras únicas que existem no seu Texto Mestre
+        const totalPalavrasMestre = extrairPalavrasUnicas(TEXTO_MESTRE).length;
+
+        // Lista de controle contendo apenas PALAVRAS puras já enviadas
         let palavrasJaSalvas = [];
 
         const input = document.getElementById('meuInput');
         const botao = document.getElementById('btnEnviar');
         const lista = document.getElementById('listaTextos');
         const msgErro = document.getElementById('mensagemErro');
+        const painelContador = document.getElementById('painelContador');
 
         window.onload = carregarDados;
+
+        // Atualiza o texto do contador na tela
+        function atualizarInterfaceContador() {
+            // Conta quantas palavras válidas do Texto Mestre já foram descobertas
+            let acertos = 0;
+            const palavrasMestreLista = extrairPalavrasUnicas(TEXTO_MESTRE);
+            
+            palavrasJaSalvas.forEach(p => {
+                if (palavrasMestreLista.includes(p)) {
+                    acertos++;
+                }
+            });
+
+            painelContador.textContent = "Palavras descobertas: " + acertos + " / " + totalPalavrasMestre;
+        }
 
         botao.addEventListener('click', () => {
             msgErro.textContent = ""; 
@@ -50,19 +90,16 @@
             
             if (entradaUsuario === "") return;
 
-            // Divide a frase digitada em palavras individuais removendo espaços extras
             const palavrasDigitadas = entradaUsuario.split(/\s+/);
             
             let palavrasValidadas = [];
             let errosEncontrados = [];
 
-            // Processa cada palavra digitada pelo usuário separadamente
             for (let palavra of palavrasDigitadas) {
-                // Remove pontuações básicas se houver
                 palavra = palavra.replace(/[.,\/#!\$%\^&\*;:{}=\-_`~()]/g,"");
                 if (palavra === "") continue;
 
-                // 1ª VALIDAÇÃO: Verifica se a palavra exata existe isolada no Texto Mestre
+                // 1ª VALIDAÇÃO: Existe no texto mestre?
                 const regexPalavra = new RegExp("\\b" + palavra + "\\b", "i");
                 const existeNoTexto = regexPalavra.test(TEXTO_MESTRE);
 
@@ -71,26 +108,22 @@
                     continue;
                 }
 
-                // 2ª VALIDAÇÃO: Verifica se ela já foi consumida ou gravada antes
+                // 2ª VALIDAÇÃO: Já foi usada?
                 if (palavrasJaSalvas.includes(palavra)) {
                     errosEncontrados.push("A palavra '" + palavra + "' já foi usada.");
                     continue;
                 }
 
-                // Se passou, adiciona na lista para envio
                 palavrasValidadas.push(palavra);
             }
 
-            // Se houver qualquer erro na validação das palavras da frase, interrompe tudo
             if (errosEncontrados.length > 0) {
                 msgErro.innerHTML = errosEncontrados.join("<br>");
                 return;
             }
 
-            // Se nenhuma palavra sobrou após as limpezas
             if (palavrasValidadas.length === 0) return;
 
-            // Junta as palavras validadas para salvar exatamente o que o usuário escreveu na ordem dele
             const textoFinalParaSalvar = palavrasValidadas.join(" ");
 
             botao.innerText = "Enviando...";
@@ -117,7 +150,6 @@
             });
         });
 
-        // Função que lê os dados e separa registros por termos individuais
         function carregarDados() {
             lista.innerHTML = "<li>Carregando histórico...</li>";
             palavrasJaSalvas = []; 
@@ -139,7 +171,6 @@
                     if (colunas[1] && colunas[1].trim() !== "") {
                         const textoCompletoLinha = colunas[1].trim().toLowerCase();
                         
-                        // NOVIDADE: Divide o texto da linha por espaço para travar as palavras isoladamente
                         const partesPalavras = textoCompletoLinha.split(/\s+/);
                         partesPalavras.forEach(p => {
                             const pLimpa = p.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
@@ -157,10 +188,14 @@
                 if (!temDados) {
                     lista.innerHTML = "<li>Nenhum texto salvo ainda.</li>";
                 }
+                
+                // Recalcula e atualiza o contador na tela após processar todas as palavras
+                atualizarInterfaceContador();
             })
             .catch(err => {
                 lista.innerHTML = "<li>Erro ao carregar dados históricos.</li>";
                 console.error(err);
+                atualizarInterfaceContador();
             });
         }
     </script>
