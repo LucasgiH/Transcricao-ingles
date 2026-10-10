@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Validador de Palavras e Planilha</title>
+    <title>Validador de Palavras Individuais</title>
     <style>
         body { font-family: Arial, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; }
         input { width: 65%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
@@ -18,7 +18,7 @@
 
     <h2>Salvar Texto no Banco de Dados (Planilha)</h2>
     
-    <input type="text" id="meuInput" placeholder="Digite uma palavra...">
+    <input type="text" id="meuInput" placeholder="Digite uma ou mais palavras...">
     <button id="btnEnviar">Enviar</button>
     <div id="mensagemErro" class="erro"></div>
 
@@ -31,10 +31,10 @@
         const ID_CAMPO_TEXTO = "entry.730854788"; 
         const URL_LEITURA_PLANILHA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRYukjKYJc15KobhiHyW7xdE70ZoCAqgC2XykcyiRYtkBoRzWxKpIG612ljXAkcGny7ImtGjjTvYkuD/pub?output=tsv";
 
-        // ⚠️ COLOQUE O SEU TEXTO COMPLETO DE PALAVRAS AQUI DENTRO DAS ASPAS
+        // ⚠️ TEXTO MESTRE DE REFERÊNCIA
         const TEXTO_MESTRE = "hello world oi tudo bem este é um texto de exemplo para a transcrição em ingles";
 
-        // Lista interna para sabermos o que já veio gravado do banco de dados
+        // Lista de controle que conterá apenas PALAVRAS puras já enviadas
         let palavrasJaSalvas = [];
 
         const input = document.getElementById('meuInput');
@@ -42,39 +42,62 @@
         const lista = document.getElementById('listaTextos');
         const msgErro = document.getElementById('mensagemErro');
 
-        // Carrega o histórico da planilha assim que a página abre
         window.onload = carregarDados;
 
         botao.addEventListener('click', () => {
-            msgErro.textContent = ""; // Limpa avisos anteriores
-            const palavraDigitada = input.value.trim().toLowerCase(); // Deixa em minúsculo para comparar melhor
+            msgErro.textContent = ""; 
+            const entradaUsuario = input.value.trim().toLowerCase();
             
-            if (palavraDigitada === "") return;
+            if (entradaUsuario === "") return;
 
-            // 1ª VALIDAÇÃO: Verifica se a palavra existe no Texto Mestre
-            // Usamos uma expressão regular para garantir que ele ache a palavra exata e não pedaços dela
-            const regexPalavra = new RegExp("\\b" + palavraDigitada + "\\b", "i");
-            const existeNoTexto = regexPalavra.test(TEXTO_MESTRE);
+            // Divide a frase digitada em palavras individuais removendo espaços extras
+            const palavrasDigitadas = entradaUsuario.split(/\s+/);
+            
+            let palavrasValidadas = [];
+            let errosEncontrados = [];
 
-            if (!existeNoTexto) {
-                msgErro.textContent = "A palavra '" + palavraDigitada + "' não existe no texto cadastrado.";
-                input.value = "";
-                return; // Bloqueia o envio
+            // Processa cada palavra digitada pelo usuário separadamente
+            for (let palavra of palavrasDigitadas) {
+                // Remove pontuações básicas se houver
+                palavra = palavra.replace(/[.,\/#!\$%\^&\*;:{}=\-_`~()]/g,"");
+                if (palavra === "") continue;
+
+                // 1ª VALIDAÇÃO: Verifica se a palavra exata existe isolada no Texto Mestre
+                const regexPalavra = new RegExp("\\b" + palavra + "\\b", "i");
+                const existeNoTexto = regexPalavra.test(TEXTO_MESTRE);
+
+                if (!existeNoTexto) {
+                    errosEncontrados.push("A palavra '" + palavra + "' não existe no texto cadastrado.");
+                    continue;
+                }
+
+                // 2ª VALIDAÇÃO: Verifica se ela já foi consumida ou gravada antes
+                if (palavrasJaSalvas.includes(palavra)) {
+                    errosEncontrados.push("A palavra '" + palavra + "' já foi usada.");
+                    continue;
+                }
+
+                // Se passou, adiciona na lista para envio
+                palavrasValidadas.push(palavra);
             }
 
-            // 2ª VALIDAÇÃO: Verifica se ela já foi enviada antes (lendo a nossa lista)
-            if (palavrasJaSalvas.includes(palavraDigitada)) {
-                msgErro.textContent = "A palavra '" + palavraDigitada + "' já foi enviada anteriormente!";
-                input.value = "";
-                return; // Bloqueia o envio
+            // Se houver qualquer erro na validação das palavras da frase, interrompe tudo
+            if (errosEncontrados.length > 0) {
+                msgErro.innerHTML = errosEncontrados.join("<br>");
+                return;
             }
 
-            // Se passou nas duas validações, faz o envio para a planilha
+            // Se nenhuma palavra sobrou após as limpezas
+            if (palavrasValidadas.length === 0) return;
+
+            // Junta as palavras validadas para salvar exatamente o que o usuário escreveu na ordem dele
+            const textoFinalParaSalvar = palavrasValidadas.join(" ");
+
             botao.innerText = "Enviando...";
             botao.disabled = true;
 
             const dados = new FormData();
-            dados.append(ID_CAMPO_TEXTO, palavraDigitada);
+            dados.append(ID_CAMPO_TEXTO, textoFinalParaSalvar);
 
             fetch(URL_FORMULARIO, {
                 method: "POST",
@@ -85,8 +108,6 @@
                 input.value = ""; 
                 botao.innerText = "Enviar";
                 botao.disabled = false;
-                
-                // Aguarda 1 segundo e recarrega para dar tempo do Google processar a linha nova
                 setTimeout(carregarDados, 1000); 
             })
             .catch(erro => {
@@ -96,12 +117,11 @@
             });
         });
 
-        // Função que lê os dados da Planilha sem deixar acumular lixo no Cache
+        // Função que lê os dados e separa registros por termos individuais
         function carregarDados() {
             lista.innerHTML = "<li>Carregando histórico...</li>";
-            palavrasJaSalvas = []; // Reseta a lista de controle antes de ler
+            palavrasJaSalvas = []; 
             
-            // Adiciona um quebrador de cache temporal dinâmico na URL
             const urlComCacheBust = URL_LEITURA_PLANILHA + "&nocache=" + Date.now();
 
             fetch(urlComCacheBust)
@@ -117,16 +137,20 @@
                     const colunas = linhas[i].split("\t");
                     
                     if (colunas[1] && colunas[1].trim() !== "") {
-                        const palavraNormalizada = colunas[1].trim().toLowerCase();
+                        const textoCompletoLinha = colunas[1].trim().toLowerCase();
                         
-                        // Alimenta nossa lista de controle para impedir duplicados futuros
-                        if (!palavrasJaSalvas.includes(palavraNormalizada)) {
-                            palavrasJaSalvas.push(palavraNormalizada);
-                        }
+                        // NOVIDADE: Divide o texto da linha por espaço para travar as palavras isoladamente
+                        const partesPalavras = textoCompletoLinha.split(/\s+/);
+                        partesPalavras.forEach(p => {
+                            const pLimpa = p.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+                            if (pLimpa !== "" && !palavrasJaSalvas.includes(pLimpa)) {
+                                palavrasJaSalvas.push(pLimpa);
+                            }
+                        });
 
                         const li = document.createElement('li');
                         li.textContent = colunas[1].trim();
-                        lista.insertBefore(li, lista.firstChild); // Mais recentes no topo da tela
+                        lista.insertBefore(li, lista.firstChild); 
                         temDados = true;
                     }
                 }
