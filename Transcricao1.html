@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validador de Palavras e Planilha</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; }
+        input { width: 65%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; }
+        button:hover { background-color: #0056b3; }
+        ul { margin-top: 20px; padding-left: 0; list-style-type: none; }
+        li { padding: 10px; border-bottom: 1px solid #eee; background-color: #f9f9f9; margin-bottom: 5px; border-radius: 4px; font-size: 16px; }
+        .erro { color: red; font-size: 14px; margin-top: 5px; min-height: 20px; }
+    </style>
+</head>
+<body>
+
+    <h2>Salvar Texto no Banco de Dados (Planilha)</h2>
+    
+    <input type="text" id="meuInput" placeholder="Digite uma palavra...">
+    <button id="btnEnviar">Enviar</button>
+    <div id="mensagemErro" class="erro"></div>
+
+    <h3>Textos Salvos:</h3>
+    <ul id="listaTextos"></ul>
+
+    <script>
+        // Configurações do seu Google Forms / Planilha
+        const URL_FORMULARIO = "https://docs.google.com/forms/d/e/1FAIpQLSc2Ss9rLVimE5sBlMu_oDsoM4yW0frAusOtZQxIDa-Us3eKFw/formResponse";
+        const ID_CAMPO_TEXTO = "entry.730854788"; 
+        const URL_LEITURA_PLANILHA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRYukjKYJc15KobhiHyW7xdE70ZoCAqgC2XykcyiRYtkBoRzWxKpIG612ljXAkcGny7ImtGjjTvYkuD/pub?output=tsv";
+
+        // ⚠️ COLOQUE O SEU TEXTO COMPLETO DE PALAVRAS AQUI DENTRO DAS ASPAS
+        const TEXTO_MESTRE = "hello world oi tudo bem este é um texto de exemplo para a transcrição em ingles";
+
+        // Lista interna para sabermos o que já veio gravado do banco de dados
+        let palavrasJaSalvas = [];
+
+        const input = document.getElementById('meuInput');
+        const botao = document.getElementById('btnEnviar');
+        const lista = document.getElementById('listaTextos');
+        const msgErro = document.getElementById('mensagemErro');
+
+        // Carrega o histórico da planilha assim que a página abre
+        window.onload = carregarDados;
+
+        botao.addEventListener('click', () => {
+            msgErro.textContent = ""; // Limpa avisos anteriores
+            const palavraDigitada = input.value.trim().toLowerCase(); // Deixa em minúsculo para comparar melhor
+            
+            if (palavraDigitada === "") return;
+
+            // 1ª VALIDAÇÃO: Verifica se a palavra existe no Texto Mestre
+            // Usamos uma expressão regular para garantir que ele ache a palavra exata e não pedaços dela
+            const regexPalavra = new RegExp("\\b" + palavraDigitada + "\\b", "i");
+            const existeNoTexto = regexPalavra.test(TEXTO_MESTRE);
+
+            if (!existeNoTexto) {
+                msgErro.textContent = "A palavra '" + palavraDigitada + "' não existe no texto cadastrado.";
+                input.value = "";
+                return; // Bloqueia o envio
+            }
+
+            // 2ª VALIDAÇÃO: Verifica se ela já foi enviada antes (lendo a nossa lista)
+            if (palavrasJaSalvas.includes(palavraDigitada)) {
+                msgErro.textContent = "A palavra '" + palavraDigitada + "' já foi enviada anteriormente!";
+                input.value = "";
+                return; // Bloqueia o envio
+            }
+
+            // Se passou nas duas validações, faz o envio para a planilha
+            botao.innerText = "Enviando...";
+            botao.disabled = true;
+
+            const dados = new FormData();
+            dados.append(ID_CAMPO_TEXTO, palavraDigitada);
+
+            fetch(URL_FORMULARIO, {
+                method: "POST",
+                mode: "no-cors",
+                body: dados
+            })
+            .then(() => {
+                input.value = ""; 
+                botao.innerText = "Enviar";
+                botao.disabled = false;
+                
+                // Aguarda 1 segundo e recarrega para dar tempo do Google processar a linha nova
+                setTimeout(carregarDados, 1000); 
+            })
+            .catch(erro => {
+                alert("Erro ao conectar.");
+                botao.innerText = "Enviar";
+                botao.disabled = false;
+            });
+        });
+
+        // Função que lê os dados da Planilha sem deixar acumular lixo no Cache
+        function carregarDados() {
+            lista.innerHTML = "<li>Carregando histórico...</li>";
+            palavrasJaSalvas = []; // Reseta a lista de controle antes de ler
+            
+            // Adiciona um quebrador de cache temporal dinâmico na URL
+            const urlComCacheBust = URL_LEITURA_PLANILHA + "&nocache=" + Date.now();
+
+            fetch(urlComCacheBust)
+            .then(res => res.text())
+            .then(textotsv => {
+                lista.innerHTML = "";
+                const linhas = textotsv.split(/\r?\n/);
+                let temDados = false;
+                
+                for (let i = 1; i < linhas.length; i++) {
+                    if (linhas[i].trim() === "") continue;
+                    
+                    const colunas = linhas[i].split("\t");
+                    
+                    if (colunas[1] && colunas[1].trim() !== "") {
+                        const palavraNormalizada = colunas[1].trim().toLowerCase();
+                        
+                        // Alimenta nossa lista de controle para impedir duplicados futuros
+                        if (!palavrasJaSalvas.includes(palavraNormalizada)) {
+                            palavrasJaSalvas.push(palavraNormalizada);
+                        }
+
+                        const li = document.createElement('li');
+                        li.textContent = colunas[1].trim();
+                        lista.insertBefore(li, lista.firstChild); // Mais recentes no topo da tela
+                        temDados = true;
+                    }
+                }
+                if (!temDados) {
+                    lista.innerHTML = "<li>Nenhum texto salvo ainda.</li>";
+                }
+            })
+            .catch(err => {
+                lista.innerHTML = "<li>Erro ao carregar dados históricos.</li>";
+                console.error(err);
+            });
+        }
+    </script>
+</body>
+</html>
