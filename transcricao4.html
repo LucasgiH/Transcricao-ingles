@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validador de Palavras com Contador Colorido</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; }
+        input { width: 65%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; }
+        button:hover { background-color: #0056b3; }
+        ul { margin-top: 20px; padding-left: 0; list-style-type: none; }
+        li { padding: 10px; border-bottom: 1px solid #eee; background-color: #f9f9f9; margin-bottom: 5px; border-radius: 4px; font-size: 16px; }
+        .erro { color: red; font-size: 14px; margin-top: 5px; min-height: 20px; }
+        
+        /* Estilo base do Painel do Contador */
+        .painel-contador { 
+            padding: 15px; 
+            border-radius: 4px; 
+            margin-bottom: 20px; 
+            font-weight: bold; 
+            font-size: 18px; 
+            text-align: center; 
+            transition: background-color 0.3s, color 0.3s; /* Efeito suave na troca de cor */
+        }
+        
+        /* Cor de 0% a 59% (Vermelho) */
+        .contador-vermelho {
+            background-color: #fce4d6;
+            border: 1px solid #f8cbad;
+            color: #c00000;
+        }
+
+        /* Cor a partir de 60% (Verde) */
+        .contador-verde {
+            background-color: #e2f0d9;
+            border: 1px solid #b5d5a7;
+            color: #385723;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Salvar Texto no Banco de Dados (Planilha)</h2>
+    
+    <!-- Painel Visual do Contador inicializado com a classe vermelha -->
+    <div id="painelContador" class="painel-contador contador-vermelho">Contando palavras...</div>
+
+    <input type="text" id="meuInput" placeholder="Digite uma ou mais palavras...">
+    <button id="btnEnviar">Enviar</button>
+    <div id="mensagemErro" class="erro"></div>
+
+    <h3>Textos Salvos:</h3>
+    <ul id="listaTextos"></ul>
+
+    <script>
+        // Configurações do seu Google Forms / Planilha
+        const URL_FORMULARIO = "https://docs.google.com/forms/d/e/1FAIpQLSc2Ss9rLVimE5sBlMu_oDsoM4yW0frAusOtZQxIDa-Us3eKFw/formResponse";
+        const ID_CAMPO_TEXTO = "entry.730854788"; 
+        const URL_LEITURA_PLANILHA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRYukjKYJc15KobhiHyW7xdE70ZoCAqgC2XykcyiRYtkBoRzWxKpIG612ljXAkcGny7ImtGjjTvYkuD/pub?output=tsv";
+
+        // ⚠️ TEXTO MESTRE DE REFERÊNCIA
+        const TEXTO_MESTRE = "Hey pete where is everybody Oh jimmy it's it is you Yeah I guess you want to kill gary now that he turned most of the school against you and got those rich kids to throw eggs at you Gary will get what's coming what is to him what is wrong with you Nothing Well you are sitting around watching tv by yourself like a loser someone crap in your bed ? what's wrong ? Well for one moment I had friends Just one moment you and gary yeah gary is a snake and you're a psychopath Aw come on And you both bullied me mercilessly but at least I wasn't left out Now I am back on my own and I am too cool to be a dork and I'm too dorky to be anything else You're not on your own where is everybody At the bike race in old bullworth vale by shiny bikes at the beach Bike race ? Why didn't you say so ? Come on";
+
+        // Função auxiliar para quebrar um texto em palavras únicas puras e sem pontuação
+        function extrairPalavrasUnicas(texto) {
+            const listaBruta = texto.toLowerCase()
+                                    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"")
+                                    .split(/\s+/);
+            const filtrada = [];
+            listaBruta.forEach(p => {
+                if (p !== "" && !filtrada.includes(p)) {
+                    filtrada.push(p);
+                }
+            });
+            return filtrada;
+        }
+
+        // Descobre o total de palavras únicas que existem no seu Texto Mestre
+        const totalPalavrasMestre = extrairPalavrasUnicas(TEXTO_MESTRE).length;
+
+        // Lista de controle contendo apenas PALAVRAS puras já enviadas
+        let palavrasJaSalvas = [];
+
+        const input = document.getElementById('meuInput');
+        const botao = document.getElementById('btnEnviar');
+        const lista = document.getElementById('listaTextos');
+        const msgErro = document.getElementById('mensagemErro');
+        const painelContador = document.getElementById('painelContador');
+
+        window.onload = carregarDados;
+
+        // Atualiza o texto e a COR do contador na tela
+        function atualizarInterfaceContador() {
+            let acertos = 0;
+            const palavrasMestreLista = extrairPalavrasUnicas(TEXTO_MESTRE);
+            
+            palavrasJaSalvas.forEach(p => {
+                if (palavrasMestreLista.includes(p)) {
+                    acertos++;
+                }
+            });
+
+            // Calcula a porcentagem de acertos (evita divisão por zero se o texto mestre estiver vazio)
+            const porcentagem = totalPalavrasMestre > 0 ? (acertos / totalPalavrasMestre) * 100 : 0;
+
+            // Altera o texto exibido
+            painelContador.textContent = "Palavras descobertas: " + acertos + " / " + totalPalavrasMestre + " (" + Math.floor(porcentagem) + "%)";
+
+            // Aplica a regra das cores (Remove as duas classes e adiciona a correta)
+            painelContador.classList.remove("contador-vermelho", "contador-verde");
+            
+            if (porcentagem < 60) {
+                painelContador.classList.add("contador-vermelho");
+            } else {
+                painelContador.classList.add("contador-verde");
+            }
+        }
+
+        botao.addEventListener('click', () => {
+            msgErro.textContent = ""; 
+            const entradaUsuario = input.value.trim().toLowerCase();
+            
+            if (entradaUsuario === "") return;
+
+            const palavrasDigitadas = entradaUsuario.split(/\s+/);
+            
+            let palavrasValidadas = [];
+            let errosEncontrados = [];
+
+            for (let palavra of palavrasDigitadas) {
+                palavra = palavra.replace(/[.,\/#!\$%\^&\*;:{}=\-_`~()]/g,"");
+                if (palavra === "") continue;
+
+                // 1ª VALIDAÇÃO: Existe no texto mestre?
+                const regexPalavra = new RegExp("\\b" + palavra + "\\b", "i");
+                const existeNoTexto = regexPalavra.test(TEXTO_MESTRE);
+
+                if (!existeNoTexto) {
+                    errosEncontrados.push("A palavra '" + palavra + "' não existe no texto cadastrado.");
+                    continue;
+                }
+
+                // 2ª VALIDAÇÃO: Já foi usada?
+                if (palavrasJaSalvas.includes(palavra)) {
+                    errosEncontrados.push("A palavra '" + palavra + "' já foi usada.");
+                    continue;
+                }
+
+                palavrasValidadas.push(palavra);
+            }
+
+            if (errosEncontrados.length > 0) {
+                msgErro.innerHTML = errosEncontrados.join("<br>");
+                return;
+            }
+
+            if (palavrasValidadas.length === 0) return;
+
+            const textoFinalParaSalvar = palavrasValidadas.join(" ");
+
+            botao.innerText = "Enviando...";
+            botao.disabled = true;
+
+            const dados = new FormData();
+            dados.append(ID_CAMPO_TEXTO, textoFinalParaSalvar);
+
+            fetch(URL_FORMULARIO, {
+                method: "POST",
+                mode: "no-cors",
+                body: dados
+            })
+            .then(() => {
+                input.value = ""; 
+                botao.innerText = "Enviar";
+                botao.disabled = false;
+                setTimeout(carregarDados, 1000); 
+            })
+            .catch(erro => {
+                alert("Erro ao conectar.");
+                botao.innerText = "Enviar";
+                botao.disabled = false;
+            });
+        });
+
+        function carregarDados() {
+            lista.innerHTML = "<li>Carregando histórico...</li>";
+            palavrasJaSalvas = []; 
+            
+            const urlComCacheBust = URL_LEITURA_PLANILHA + "&nocache=" + Date.now();
+
+            fetch(urlComCacheBust)
+            .then(res => res.text())
+            .then(textotsv => {
+                lista.innerHTML = "";
+                const linhas = textotsv.split(/\r?\n/);
+                let temDados = false;
+                
+                for (let i = 1; i < linhas.length; i++) {
+                    if (linhas[i].trim() === "") continue;
+                    
+                    const colunas = linhas[i].split("\t");
+                    
+                    if (colunas[1] && colunas[1].trim() !== "") {
+                        const textoCompletoLinha = colunas[1].trim().toLowerCase();
+                        
+                        const partesPalavras = textoCompletoLinha.split(/\s+/);
+                        partesPalavras.forEach(p => {
+                            const pLimpa = p.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+                            if (pLimpa !== "" && !palavrasJaSalvas.includes(pLimpa)) {
+                                palavrasJaSalvas.push(pLimpa);
+                            }
+                        });
+
+                        const li = document.createElement('li');
+                        li.textContent = colunas[1].trim();
+                        lista.insertBefore(li, lista.firstChild); 
+                        temDados = true;
+                    }
+                }
+                if (!temDados) {
+                    lista.innerHTML = "<li>Nenhum texto salvo ainda.</li>";
+                }
+                
+                atualizarInterfaceContador();
+            })
+            .catch(err => {
+                lista.innerHTML = "<li>Erro ao carregar dados históricos.</li>";
+                console.error(err);
+                atualizarInterfaceContador();
+            });
+        }
+    </script>
+</body>
+</html>
