@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!--faz descoberta palavras e exibe-->
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -25,6 +26,27 @@
         
         .contador-vermelho { background-color: #fce4d6; border: 1px solid #f8cbad; color: #c00000; }
         .contador-verde { background-color: #e2f0d9; border: 1px solid #b5d5a7; color: #385723; }
+
+        /* Estilos para o texto mestre oculto/revelado */
+        .palavra-oculta {
+            display: inline-block;
+            background-color: #ddd;
+            color: transparent;
+            border-radius: 4px;
+            padding: 2px 8px;
+            margin: 2px;
+            user-select: none;
+        }
+
+        .palavra-revelada {
+            display: inline-block;
+            background-color: #e2f0d9;
+            color: #385723;
+            font-weight: bold;
+            border-radius: 4px;
+            padding: 2px 8px;
+            margin: 2px;
+        }
     </style>
 </head>
 <body>
@@ -32,6 +54,10 @@
     <h2>Salvar Texto no Banco de Dados (Planilha)</h2>
     
     <div id="painelContador" class="painel-contador contador-vermelho">Contando palavras...</div>
+
+    <!-- Novo container para exibir o texto master -->
+    <h3>Texto para Desbloquear:</h3>
+    <div id="containerTextoMestre" style="font-size: 20px; line-height: 1.8; margin-bottom: 20px; text-align: center;"></div>
 
     <input type="text" id="meuInput" placeholder="Digite uma ou mais palavras...">
     <button id="btnEnviar">Enviar</button>
@@ -42,9 +68,9 @@
 
     <script>
         const URL_FORMULARIO = "https://docs.google.com/forms/d/e/1FAIpQLSc2Ss9rLVimE5sBlMu_oDsoM4yW0frAusOtZQxIDa-Us3eKFw/formResponse";
-const ID_CAMPO_TEXTO = "entry.730854788";
-const URL_LEITURA_PLANILHA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRYukjKYJc15KobhiHyW7xdE70ZoCAqgC2XykcyiRYtkBoRzWxKpIG612ljXAkcGny7ImtGjjTvYkuD/pub?output=tsv";
-const TEXTO_MESTRE = "hello ? you boy don't just stand there come and help what do you want sir ? why did you send for me ? I sent for you ? Oh yes I did . look at that plant boy . magnificent isn't it ? A crapula Maxima fortissima . a rare and precious venus flytrap . unfortunately there is a boy at this school . Derby harrington who was given such a plant from his father . His father is not a nice man . derby is not a nice boy . they keep that plant to belittle my collection . there are two sides to biology boy . life and death . do I make myselft clear ? very clear sir . You want me to kill derby harrington . Yeah I will get right on that Not the boy boy . The plant boy ! Kill the plant Oh right";
+        const ID_CAMPO_TEXTO = "entry.730854788";
+        const URL_LEITURA_PLANILHA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRYukjKYJc15KobhiHyW7xdE70ZoCAqgC2XykcyiRYtkBoRzWxKpIG612ljXAkcGny7ImtGjjTvYkuD/pub?output=tsv";
+        const TEXTO_MESTRE = "teste hello world oi";
 
         function extrairPalavrasUnicas(texto) {
             const listaBruta = texto.toLowerCase()
@@ -67,8 +93,30 @@ const TEXTO_MESTRE = "hello ? you boy don't just stand there come and help what 
         const lista = document.getElementById('listaTextos');
         const msgErro = document.getElementById('mensagemErro');
         const painelContador = document.getElementById('painelContador');
+        const containerMestre = document.getElementById('containerTextoMestre');
 
         window.onload = carregarDados;
+
+        function renderizarTextoMestre() {
+            const todasPalavras = TEXTO_MESTRE.split(/\s+/);
+            containerMestre.innerHTML = "";
+
+            todasPalavras.forEach(p => {
+                const pLimpa = p.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+                const span = document.createElement('span');
+
+                if (palavrasJaSalvas.includes(pLimpa)) {
+                    span.textContent = p;
+                    span.className = "palavra-revelada";
+                } else {
+                    span.textContent = "•".repeat(p.length);
+                    span.className = "palavra-oculta";
+                }
+
+                containerMestre.appendChild(span);
+                containerMestre.appendChild(document.createTextNode(" "));
+            });
+        }
 
         function atualizarInterfaceContador() {
             let acertos = 0;
@@ -89,6 +137,8 @@ const TEXTO_MESTRE = "hello ? you boy don't just stand there come and help what 
             } else {
                 painelContador.classList.add("contador-verde");
             }
+
+            renderizarTextoMestre();
         }
 
         botao.addEventListener('click', () => {
@@ -102,7 +152,7 @@ const TEXTO_MESTRE = "hello ? you boy don't just stand there come and help what 
             let flagErro = false;
 
             for (let palavra of palavrasDigitadas) {
-                palavra = palavra.replace(/[.,\/#!\$%\^&\*;:{}=\-_`~()]/g,"");
+                palavra = palavra.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
                 if (palavra === "") continue;
 
                 const regexPalavra = new RegExp("\\b" + palavra + "\\b", "i");
@@ -111,19 +161,18 @@ const TEXTO_MESTRE = "hello ? you boy don't just stand there come and help what 
                 if (!existeNoTexto) {
                     msgErro.textContent = "A palavra '" + palavra + "' não existe no texto cadastrado.";
                     flagErro = true;
-                    break; // Interrompe a análise na hora
+                    break;
                 }
 
                 if (palavrasJaSalvas.includes(palavra)) {
                     msgErro.textContent = "A palavra '" + palavra + "' já foi usada anteriormente.";
                     flagErro = true;
-                    break; // Interrompe a análise na hora
+                    break;
                 }
 
                 palavrasValidadas.push(palavra);
             }
 
-            // Se encontrou qualquer erro de validação, limpa o input e impede o fetch
             if (flagErro) {
                 input.value = "";
                 return;
