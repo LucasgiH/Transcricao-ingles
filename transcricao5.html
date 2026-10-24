@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<!--faz descoberta palavras e exibe-->
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validador de Palavras com Bloqueio Estrito</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; }
+        input { width: 65%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; }
+        button:hover { background-color: #0056b3; }
+        ul { margin-top: 20px; padding-left: 0; list-style-type: none; }
+        li { padding: 10px; border-bottom: 1px solid #eee; background-color: #f9f9f9; margin-bottom: 5px; border-radius: 4px; font-size: 16px; }
+        .erro { color: red; font-size: 14px; margin-top: 5px; min-height: 20px; font-weight: bold; }
+        
+        .painel-contador { 
+            padding: 15px; 
+            border-radius: 4px; 
+            margin-bottom: 20px; 
+            font-weight: bold; 
+            font-size: 18px; 
+            text-align: center; 
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        .contador-vermelho { background-color: #fce4d6; border: 1px solid #f8cbad; color: #c00000; }
+        .contador-verde { background-color: #e2f0d9; border: 1px solid #b5d5a7; color: #385723; }
+
+        /* Estilos para o texto mestre oculto/revelado */
+        .palavra-oculta {
+            display: inline-block;
+            background-color: #ddd;
+            color: transparent;
+            border-radius: 4px;
+            padding: 2px 8px;
+            margin: 2px;
+            user-select: none;
+        }
+
+        .palavra-revelada {
+            display: inline-block;
+            background-color: #e2f0d9;
+            color: #385723;
+            font-weight: bold;
+            border-radius: 4px;
+            padding: 2px 8px;
+            margin: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Salvar Texto no Banco de Dados (Planilha)</h2>
+    
+    <div id="painelContador" class="painel-contador contador-vermelho">Contando palavras...</div>
+
+    <!-- Novo container para exibir o texto master -->
+    <h3>Texto para Desbloquear:</h3>
+    <div id="containerTextoMestre" style="font-size: 20px; line-height: 1.8; margin-bottom: 20px; text-align: center;"></div>
+
+    <input type="text" id="meuInput" placeholder="Digite uma ou mais palavras...">
+    <button id="btnEnviar">Enviar</button>
+    <div id="mensagemErro" class="erro"></div>
+
+    <h3>Textos Salvos:</h3>
+    <ul id="listaTextos"></ul>
+
+    <script>
+        const URL_FORMULARIO = "https://docs.google.com/forms/d/e/1FAIpQLSc2Ss9rLVimE5sBlMu_oDsoM4yW0frAusOtZQxIDa-Us3eKFw/formResponse";
+        const ID_CAMPO_TEXTO = "entry.730854788";
+        const URL_LEITURA_PLANILHA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRYukjKYJc15KobhiHyW7xdE70ZoCAqgC2XykcyiRYtkBoRzWxKpIG612ljXAkcGny7ImtGjjTvYkuD/pub?output=tsv";
+        const TEXTO_MESTRE = "teste hello world oi";
+
+        function extrairPalavrasUnicas(texto) {
+            const listaBruta = texto.toLowerCase()
+                                    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"")
+                                    .split(/\s+/);
+            const filtrada = [];
+            listaBruta.forEach(p => {
+                if (p !== "" && !filtrada.includes(p)) {
+                    filtrada.push(p);
+                }
+            });
+            return filtrada;
+        }
+
+        const totalPalavrasMestre = extrairPalavrasUnicas(TEXTO_MESTRE).length;
+        let palavrasJaSalvas = [];
+
+        const input = document.getElementById('meuInput');
+        const botao = document.getElementById('btnEnviar');
+        const lista = document.getElementById('listaTextos');
+        const msgErro = document.getElementById('mensagemErro');
+        const painelContador = document.getElementById('painelContador');
+        const containerMestre = document.getElementById('containerTextoMestre');
+
+        window.onload = carregarDados;
+
+        function renderizarTextoMestre() {
+            const todasPalavras = TEXTO_MESTRE.split(/\s+/);
+            containerMestre.innerHTML = "";
+
+            todasPalavras.forEach(p => {
+                const pLimpa = p.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+                const span = document.createElement('span');
+
+                if (palavrasJaSalvas.includes(pLimpa)) {
+                    span.textContent = p;
+                    span.className = "palavra-revelada";
+                } else {
+                    span.textContent = "•".repeat(p.length);
+                    span.className = "palavra-oculta";
+                }
+
+                containerMestre.appendChild(span);
+                containerMestre.appendChild(document.createTextNode(" "));
+            });
+        }
+
+        function atualizarInterfaceContador() {
+            let acertos = 0;
+            const palavrasMestreLista = extrairPalavrasUnicas(TEXTO_MESTRE);
+            
+            palavrasJaSalvas.forEach(p => {
+                if (palavrasMestreLista.includes(p)) {
+                    acertos++;
+                }
+            });
+
+            const porcentagem = totalPalavrasMestre > 0 ? (acertos / totalPalavrasMestre) * 100 : 0;
+            painelContador.textContent = "Palavras descobertas: " + acertos + " / " + totalPalavrasMestre + " (" + Math.floor(porcentagem) + "%)";
+
+            painelContador.classList.remove("contador-vermelho", "contador-verde");
+            if (porcentagem < 60) {
+                painelContador.classList.add("contador-vermelho");
+            } else {
+                painelContador.classList.add("contador-verde");
+            }
+
+            renderizarTextoMestre();
+        }
+
+        botao.addEventListener('click', () => {
+            msgErro.textContent = ""; 
+            const entradaUsuario = input.value.trim().toLowerCase();
+            
+            if (entradaUsuario === "") return;
+
+            const palavrasDigitadas = entradaUsuario.split(/\s+/);
+            let palavrasValidadas = [];
+            let flagErro = false;
+
+            for (let palavra of palavrasDigitadas) {
+                palavra = palavra.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+                if (palavra === "") continue;
+
+                const regexPalavra = new RegExp("\\b" + palavra + "\\b", "i");
+                const existeNoTexto = regexPalavra.test(TEXTO_MESTRE);
+
+                if (!existeNoTexto) {
+                    msgErro.textContent = "A palavra '" + palavra + "' não existe no texto cadastrado.";
+                    flagErro = true;
+                    break;
+                }
+
+                if (palavrasJaSalvas.includes(palavra)) {
+                    msgErro.textContent = "A palavra '" + palavra + "' já foi usada anteriormente.";
+                    flagErro = true;
+                    break;
+                }
+
+                palavrasValidadas.push(palavra);
+            }
+
+            if (flagErro) {
+                input.value = "";
+                return;
+            }
+
+            if (palavrasValidadas.length === 0) return;
+
+            const textoFinalParaSalvar = palavrasValidadas.join(" ");
+
+            botao.innerText = "Enviando...";
+            botao.disabled = true;
+
+            const dados = new FormData();
+            dados.append(ID_CAMPO_TEXTO, textoFinalParaSalvar);
+
+            fetch(URL_FORMULARIO, {
+                method: "POST",
+                mode: "no-cors",
+                body: dados
+            })
+            .then(() => {
+                input.value = ""; 
+                botao.innerText = "Enviar";
+                botao.disabled = false;
+                setTimeout(carregarDados, 1000); 
+            })
+            .catch(erro => {
+                alert("Erro ao conectar.");
+                botao.innerText = "Enviar";
+                botao.disabled = false;
+            });
+        });
+
+        function carregarDados() {
+            lista.innerHTML = "<li>Carregando histórico...</li>";
+            palavrasJaSalvas = []; 
+            
+            const urlComCacheBust = URL_LEITURA_PLANILHA + "&nocache=" + Date.now();
+
+            fetch(urlComCacheBust)
+            .then(res => res.text())
+            .then(textotsv => {
+                lista.innerHTML = "";
+                const linhas = textotsv.split(/\r?\n/);
+                let temDados = false;
+                
+                for (let i = 1; i < linhas.length; i++) {
+                    if (linhas[i].trim() === "") continue;
+                    
+                    const colunas = linhas[i].split("\t");
+                    
+                    if (colunas[1] && colunas[1].trim() !== "") {
+                        const textoCompletoLinha = colunas[1].trim().toLowerCase();
+                        
+                        const partesPalavras = textoCompletoLinha.split(/\s+/);
+                        partesPalavras.forEach(p => {
+                            const pLimpa = p.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+                            if (pLimpa !== "" && !palavrasJaSalvas.includes(pLimpa)) {
+                                palavrasJaSalvas.push(pLimpa);
+                            }
+                        });
+
+                        const li = document.createElement('li');
+                        li.textContent = colunas[1].trim();
+                        lista.insertBefore(li, lista.firstChild); 
+                        temDados = true;
+                    }
+                }
+                if (!temDados) {
+                    lista.innerHTML = "<li>Nenhum texto salvo ainda.</li>";
+                }
+                
+                atualizarInterfaceContador();
+            })
+            .catch(err => {
+                lista.innerHTML = "<li>Erro ao carregar dados históricos.</li>";
+                console.error(err);
+                atualizarInterfaceContador();
+            });
+        }
+    </script>
+</body>
+</html>
