@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<!-- arquivo txt para facilitar inclusao de novas palavras no texto mestre -->
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Caixinhas de Palavras</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        input {
+            width: 65%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #containerTextoMestre {
+            font-size: 20px;
+            line-height: 2;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .palavra-oculta,
+        .palavra-revelada {
+            display: inline-block;
+            border-radius: 4px;
+            padding: 2px 8px;
+            margin: 2px;
+            cursor: pointer;
+        }
+
+        .palavra-oculta {
+            background-color: #ddd;
+            color: transparent;
+            user-select: none;
+        }
+
+        .palavra-revelada {
+            background-color: #e2f0d9;
+            color: #385723;
+            font-weight: bold;
+        }
+
+        .azul {
+            background-color: #007bff !important;
+            color: white !important;
+        }
+
+        .erro {
+            color: red;
+            font-size: 14px;
+            margin-top: 10px;
+            min-height: 20px;
+        }
+
+        li {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Descubra as palavras</h2>
+
+    <h3>Texto mestre:</h3>
+
+    <div id="containerTextoMestre"></div>
+
+    <input
+        type="text"
+        id="meuInput"
+        placeholder="Digite uma ou mais palavras..."
+    >
+
+    <button id="btnEnviar">Enviar</button>
+
+    <div id="mensagemErro" class="erro"></div>
+
+    <h3>Palavras descobertas:</h3>
+
+    <ul id="listaPalavras"></ul>
+
+    <script>
+        // 1. TEXTO DEFINIDO PELO PROGRAMADOR
+
+        //const TEXTO_MESTRE = "maybe you could help great so go and collect all the dirty laundry exactly that's why i got this research what i mean hopkins is that i am glad to report";
+        let TEXTO_MESTRE = "";
+        let palavrasMestre = [];
+        let linhasMestre = [];
+
+        // 2. ÁUDIO PRÉ-GRAVADO
+
+        const audio1 = new Audio("Maybeyou2.mp4");
+        const audio2 = new Audio("great.mp4");
+        const audio3 = new Audio("sogo1.mp4");
+        const audio4 = new Audio("collect.mp4");
+        const audio5 = new Audio("allthe2.mp4");
+        const audio6 = new Audio("exactlythat3.mp4");
+        const audio7 = new Audio("Thisresearch.mp4");
+        const audio8 = new Audio("Whati1.mp4");
+        const audio9 = new Audio("hopkins.mp4");
+        const audio10 = new Audio("Isthat2.mp4");
+        const audio11 = new Audio("Gladto1.mp4");
+
+        // 3. ELEMENTOS DA PÁGINA
+
+        const containerMestre =
+            document.getElementById("containerTextoMestre");
+
+        const input =
+            document.getElementById("meuInput");
+
+        const botao =
+            document.getElementById("btnEnviar");
+
+        const mensagemErro =
+            document.getElementById("mensagemErro");
+
+        const listaPalavras =
+            document.getElementById("listaPalavras");
+
+
+        // 4. PALAVRAS DESCOBERTAS
+
+        let palavrasDescobertas = [];
+
+
+        // 5. CAIXINHAS QUE SERÃO PINTADAS DE AZUL
+
+        const gruposDeAudio = [
+            {
+                audio: audio1,
+                indices: [0, 1, 2, 3]
+            },
+            {
+                audio: audio2,
+                indices: [4]
+            },
+            {
+                audio: audio3,
+                indices: [5, 6, 7]
+            },
+            {
+                audio: audio4,
+                indices: [8]
+            },
+            {
+                audio: audio5,
+                indices: [9, 10, 11, 12]
+            },
+            {
+                audio: audio6,
+                indices: [13, 14, 15, 16]
+            },
+            {
+                audio: audio7,
+                indices: [18, 19]
+            },
+            {
+                audio: audio8,
+                indices: [20, 21, 22]
+            },
+            {
+                audio: audio9,
+                indices: [23]
+            },
+            {
+                audio: audio10,
+                indices: [24, 25, 26, 27]
+            },
+            {
+                audio: audio11,
+                indices: [28, 29, 30]
+            }
+        ];
+
+
+        // 6. FUNÇÃO PARA NORMALIZAR AS PALAVRAS
+
+        function limparPalavra(palavra) {
+            return palavra
+                .toLowerCase()
+                .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+        }
+
+
+        // 7. DIVIDIR O TEXTO MESTRE EM PALAVRAS
+
+        //const palavrasMestre = TEXTO_MESTRE.split(/\s+/);
+        function carregarTextoMestre() {
+            fetch("texto.txt")
+                .then(resposta => {
+                    if (!resposta.ok) {
+                        throw new Error("Não foi possível carregar texto.txt");
+                    }
+        
+                    return resposta.text();
+                })
+                .then(texto => {
+        
+                    TEXTO_MESTRE = texto;
+        
+                    // Separar o texto por linhas.
+                    linhasMestre = TEXTO_MESTRE
+                        .split(/\r?\n/)
+                        .filter(linha => linha.trim() !== "");
+        
+                    // Criar uma lista com todas as palavras.
+                    palavrasMestre = linhasMestre
+                        .join(" ")
+                        .split(/\s+/);
+        
+                    // Exibir as caixinhas.
+                    renderizarTextoMestre();
+        
+                })
+                .catch(erro => {
+                    console.error(erro);
+        
+                    mensagemErro.textContent =
+                        "Não foi possível carregar o arquivo texto.txt.";
+                });
+        }
+
+
+        // 8. EXIBIR AS CAIXINHAS
+
+        function renderizarTextoMestre() {
+            containerMestre.innerHTML = "";
+        
+            let indice = 0;
+        
+            linhasMestre.forEach(linha => {
+        
+                const palavrasDaLinha = linha.split(/\s+/);
+        
+                palavrasDaLinha.forEach(palavra => {
+        
+                    const palavraLimpa = limparPalavra(palavra);
+        
+                    const caixa = document.createElement("span");
+        
+                    caixa.dataset.indice = indice;
+        
+                    if (palavrasDescobertas.includes(palavraLimpa)) {
+        
+                        caixa.textContent = palavra;
+                        caixa.className = "palavra-revelada";
+        
+                    } else {
+        
+                        caixa.textContent = "•".repeat(palavra.length);
+                        caixa.className = "palavra-oculta";
+        
+                    }
+        
+                    caixa.addEventListener("click", function() {
+                        clicarCaixinha(indice);
+                    });
+        
+                    containerMestre.appendChild(caixa);
+        
+                    containerMestre.appendChild(
+                        document.createTextNode(" ")
+                    );
+        
+                    indice++;
+        
+                });
+        
+                // Começar a próxima fala em uma nova linha.
+                containerMestre.appendChild(
+                    document.createElement("br")
+                );
+        
+            });
+        }
+
+        // 9. O QUE ACONTECE QUANDO UMA CAIXINHA É CLICADA
+
+        /*function clicarCaixinha(indiceClicado) {
+
+            // Procurar se a caixinha pertence a algum grupo de áudio.
+
+            const grupo = gruposDeAudio.find(grupo =>
+                grupo.indices.includes(indiceClicado)
+            );
+
+            // Se não pertencer a nenhum grupo, não fazer nada.
+
+            if (!grupo) {
+                return;
+            }
+
+            // Pintar somente as caixinhas do grupo selecionado.
+
+            grupo.indices.forEach(indice => {
+
+                const caixa = containerMestre.querySelector(
+                    `[data-indice="${indice}"]`
+                );
+
+                if (caixa) {
+                    caixa.classList.add("azul");
+                }
+            });
+
+            // Reproduzir o áudio pré-gravado.
+
+            grupo.audio.currentTime = 0;
+
+            grupo.audio.play().catch(erro => {
+                console.error("Não foi possível reproduzir o áudio:", erro);
+            });
+        }*/
+        function clicarCaixinha(indiceClicado) {
+        
+            // Procurar o grupo de áudio da caixinha clicada.
+            const grupo = gruposDeAudio.find(grupo =>
+                grupo.indices.includes(indiceClicado)
+            );
+        
+            // Se não pertencer a nenhum grupo, não fazer nada.
+            if (!grupo) {
+                return;
+            }
+        
+            // Remover o azul de todas as caixinhas.
+            const todasAsCaixinhas =
+                containerMestre.querySelectorAll("span");
+        
+            todasAsCaixinhas.forEach(caixa => {
+                caixa.classList.remove("azul");
+            });
+        
+            // Pintar de azul todas as caixinhas do grupo selecionado.
+            grupo.indices.forEach(indice => {
+        
+                const caixa = containerMestre.querySelector(
+                    `[data-indice="${indice}"]`
+                );
+        
+                if (caixa) {
+                    caixa.classList.add("azul");
+                }
+            });
+        
+            // Reproduzir o áudio correspondente ao grupo.
+            grupo.audio.currentTime = 0;
+        
+            grupo.audio.play().catch(erro => {
+                console.error(
+                    "Não foi possível reproduzir o áudio:",
+                    erro
+                );
+            });
+        }
+
+
+        // 10. VALIDAR AS PALAVRAS DIGITADAS
+
+        botao.addEventListener("click", function() {
+
+            mensagemErro.textContent = "";
+
+            const entrada = input.value.trim().toLowerCase();
+
+            if (entrada === "") {
+                return;
+            }
+
+            const palavrasDigitadas = entrada.split(/\s+/);
+
+            const palavrasValidadas = [];
+
+            for (let palavra of palavrasDigitadas) {
+
+                palavra = limparPalavra(palavra);
+
+                if (palavra === "") {
+                    continue;
+                }
+
+                // Verificar se a palavra existe no texto mestre.
+
+                const existe = palavrasMestre.some(p =>
+                    limparPalavra(p) === palavra
+                );
+
+                if (!existe) {
+                    mensagemErro.textContent =
+                        "A palavra '" + palavra +
+                        "' não existe no texto mestre.";
+
+                    input.value = "";
+                    return;
+                }
+
+                // Verificar se a palavra já foi descoberta.
+
+                if (
+                    palavrasDescobertas.includes(palavra) ||
+                    palavrasValidadas.includes(palavra)
+                ) {
+                    mensagemErro.textContent =
+                        "A palavra '" + palavra +
+                        "' já foi usada anteriormente.";
+
+                    input.value = "";
+                    return;
+                }
+
+                palavrasValidadas.push(palavra);
+            }
+
+            if (palavrasValidadas.length === 0) {
+                return;
+            }
+
+            // Registrar as palavras descobertas.
+
+            palavrasValidadas.forEach(palavra => {
+
+                palavrasDescobertas.push(palavra);
+
+                const item = document.createElement("li");
+
+                item.textContent = palavra;
+
+                listaPalavras.appendChild(item);
+            });
+
+            // Atualizar as caixinhas.
+
+            renderizarTextoMestre();
+
+            // Limpar o campo.
+
+            input.value = "";
+        });
+
+
+        // 11. INICIAR O PROGRAMA
+
+        //renderizarTextoMestre();
+        carregarTextoMestre();
+
+    </script>
+
+</body>
+</html>
