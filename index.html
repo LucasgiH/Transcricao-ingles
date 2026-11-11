@@ -1,377 +1,113 @@
 <!DOCTYPE html>
-<!-- sem banco e contadores divide texto para cada audio -->
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Caixinhas de Palavras</title>
-
+    <title>Salvar e Visualizar com Planilha</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 500px;
-            margin: 40px auto;
-            padding: 20px;
-        }
-
-        input {
-            width: 65%;
-            padding: 10px;
-            font-size: 16px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-
-        #containerTextoMestre {
-            font-size: 20px;
-            line-height: 2;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .palavra-oculta,
-        .palavra-revelada {
-            display: inline-block;
-            border-radius: 4px;
-            padding: 2px 8px;
-            margin: 2px;
-            cursor: pointer;
-        }
-
-        .palavra-oculta {
-            background-color: #ddd;
-            color: transparent;
-            user-select: none;
-        }
-
-        .palavra-revelada {
-            background-color: #e2f0d9;
-            color: #385723;
-            font-weight: bold;
-        }
-
-        .azul {
-            background-color: #007bff !important;
-            color: white !important;
-        }
-
-        .erro {
-            color: red;
-            font-size: 14px;
-            margin-top: 10px;
-            min-height: 20px;
-        }
-
-        li {
-            padding: 8px;
-            border-bottom: 1px solid #eee;
-        }
+        body { font-family: Arial, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; }
+        input { width: 65%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; }
+        button:hover { background-color: #0056b3; }
+        ul { margin-top: 20px; padding-left: 0; list-style-type: none; }
+        li { padding: 10px; border-bottom: 1px solid #eee; background-color: #f9f9f9; margin-bottom: 5px; border-radius: 4px; font-size: 16px; }
     </style>
 </head>
-
 <body>
 
-    <h2>Descubra as palavras</h2>
-
-    <h3>Texto mestre:</h3>
-
-    <div id="containerTextoMestre"></div>
-
-    <input
-        type="text"
-        id="meuInput"
-        placeholder="Digite uma ou mais palavras..."
-    >
-
+    <h2>Salvar Texto no Banco de Dados (Planilha)</h2>
+    
+    <input type="text" id="meuInput" placeholder="Digite algo aqui...">
     <button id="btnEnviar">Enviar</button>
 
-    <div id="mensagemErro" class="erro"></div>
-
-    <h3>Palavras descobertas:</h3>
-
-    <ul id="listaPalavras"></ul>
+    <h3>Textos Salvos:</h3>
+    <ul id="listaTextos"></ul>
 
     <script>
-        // 1. TEXTO DEFINIDO PELO PROGRAMADOR
+        // Link de envio do Formulário
+        const URL_FORMULARIO = "https://docs.google.com/forms/d/e/1FAIpQLSc2Ss9rLVimE5sBlMu_oDsoM4yW0frAusOtZQxIDa-Us3eKFw/formResponse";
+        const ID_CAMPO_TEXTO = "entry.730854788"; 
 
-        const TEXTO_MESTRE = "all the dirty laundry i am glad to report";
+        // Link de LEITURA da Planilha (Convertido para formato aberto TSV)
+        const URL_LEITURA_PLANILHA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRYukjKYJc15KobhiHyW7xdE70ZoCAqgC2XykcyiRYtkBoRzWxKpIG612ljXAkcGny7ImtGjjTvYkuD/pub?output=tsv";
 
+        const input = document.getElementById('meuInput');
+        const botao = document.getElementById('btnEnviar');
+        const lista = document.getElementById('listaTextos');
 
-        // 2. ÁUDIO PRÉ-GRAVADO
+        // Carrega os dados assim que abre a página
+        window.onload = carregarDados;
 
-        const audio1 = new Audio("Allthe2.mp4");
-        const audio2 = new Audio("Gladto1.mp4");
-        
-        // 3. ELEMENTOS DA PÁGINA
+        // Função para ENVIAR o texto
+        botao.addEventListener('click', () => {
+            const texto = input.value.trim();
+            if (texto !== "") {
+                botao.innerText = "Enviando...";
+                botao.disabled = true;
 
-        const containerMestre =
-            document.getElementById("containerTextoMestre");
+                const dados = new FormData();
+                dados.append(ID_CAMPO_TEXTO, texto);
 
-        const input =
-            document.getElementById("meuInput");
-
-        const botao =
-            document.getElementById("btnEnviar");
-
-        const mensagemErro =
-            document.getElementById("mensagemErro");
-
-        const listaPalavras =
-            document.getElementById("listaPalavras");
-
-
-        // 4. PALAVRAS DESCOBERTAS
-
-        let palavrasDescobertas = [];
-
-
-        // 5. CAIXINHAS QUE SERÃO PINTADAS DE AZUL
-
-        const gruposDeAudio = [
-            {
-                audio: audio1,
-                indices: [0, 1, 2, 3]
-            },
-            {
-                audio: audio2,
-                indices: [4, 5, 6, 7, 8]
-            },
-        ];
-
-
-        // 6. FUNÇÃO PARA NORMALIZAR AS PALAVRAS
-
-        function limparPalavra(palavra) {
-            return palavra
-                .toLowerCase()
-                .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
-        }
-
-
-        // 7. DIVIDIR O TEXTO MESTRE EM PALAVRAS
-
-        const palavrasMestre = TEXTO_MESTRE.split(/\s+/);
-
-
-        // 8. EXIBIR AS CAIXINHAS
-
-        function renderizarTextoMestre() {
-            containerMestre.innerHTML = "";
-
-            palavrasMestre.forEach((palavra, indice) => {
-
-                const palavraLimpa = limparPalavra(palavra);
-
-                const caixa = document.createElement("span");
-
-                caixa.dataset.indice = indice;
-
-                if (palavrasDescobertas.includes(palavraLimpa)) {
-                    caixa.textContent = palavra;
-                    caixa.className = "palavra-revelada";
-                } else {
-                    caixa.textContent = "•".repeat(palavra.length);
-                    caixa.className = "palavra-oculta";
-                }
-
-                caixa.addEventListener("click", function() {
-                    clicarCaixinha(indice);
+                fetch(URL_FORMULARIO, {
+                    method: "POST",
+                    mode: "no-cors",
+                    body: dados
+                })
+                .then(() => {
+                    input.value = ""; 
+                    botao.innerText = "Enviar";
+                    botao.disabled = false;
+                    // Recarrega a lista na tela logo após enviar
+                    setTimeout(carregarDados, 1000); 
+                })
+                .catch(erro => {
+                    alert("Erro ao enviar.");
+                    botao.innerText = "Enviar";
+                    botao.disabled = false;
                 });
-
-                containerMestre.appendChild(caixa);
-
-                containerMestre.appendChild(
-                    document.createTextNode(" ")
-                );
-            });
-        }
-
-
-        // 9. O QUE ACONTECE QUANDO UMA CAIXINHA É CLICADA
-
-        /*function clicarCaixinha(indiceClicado) {
-
-            // Procurar se a caixinha pertence a algum grupo de áudio.
-
-            const grupo = gruposDeAudio.find(grupo =>
-                grupo.indices.includes(indiceClicado)
-            );
-
-            // Se não pertencer a nenhum grupo, não fazer nada.
-
-            if (!grupo) {
-                return;
             }
-
-            // Pintar somente as caixinhas do grupo selecionado.
-
-            grupo.indices.forEach(indice => {
-
-                const caixa = containerMestre.querySelector(
-                    `[data-indice="${indice}"]`
-                );
-
-                if (caixa) {
-                    caixa.classList.add("azul");
-                }
-            });
-
-            // Reproduzir o áudio pré-gravado.
-
-            grupo.audio.currentTime = 0;
-
-            grupo.audio.play().catch(erro => {
-                console.error("Não foi possível reproduzir o áudio:", erro);
-            });
-        }*/
-        function clicarCaixinha(indiceClicado) {
-        
-            // Procurar o grupo de áudio da caixinha clicada.
-            const grupo = gruposDeAudio.find(grupo =>
-                grupo.indices.includes(indiceClicado)
-            );
-        
-            // Se não pertencer a nenhum grupo, não fazer nada.
-            if (!grupo) {
-                return;
-            }
-        
-            // Remover o azul de todas as caixinhas.
-            const todasAsCaixinhas =
-                containerMestre.querySelectorAll("span");
-        
-            todasAsCaixinhas.forEach(caixa => {
-                caixa.classList.remove("azul");
-            });
-        
-            // Pintar de azul todas as caixinhas do grupo selecionado.
-            grupo.indices.forEach(indice => {
-        
-                const caixa = containerMestre.querySelector(
-                    `[data-indice="${indice}"]`
-                );
-        
-                if (caixa) {
-                    caixa.classList.add("azul");
-                }
-            });
-        
-            // Reproduzir o áudio correspondente ao grupo.
-            grupo.audio.currentTime = 0;
-        
-            grupo.audio.play().catch(erro => {
-                console.error(
-                    "Não foi possível reproduzir o áudio:",
-                    erro
-                );
-            });
-        }
-
-
-        // 10. VALIDAR AS PALAVRAS DIGITADAS
-
-        botao.addEventListener("click", function() {
-
-            mensagemErro.textContent = "";
-
-            const entrada = input.value.trim().toLowerCase();
-
-            if (entrada === "") {
-                return;
-            }
-
-            const palavrasDigitadas = entrada.split(/\s+/);
-
-            const palavrasValidadas = [];
-
-            for (let palavra of palavrasDigitadas) {
-
-                palavra = limparPalavra(palavra);
-
-                if (palavra === "") {
-                    continue;
-                }
-
-                // Verificar se a palavra existe no texto mestre.
-
-                const existe = palavrasMestre.some(p =>
-                    limparPalavra(p) === palavra
-                );
-
-                if (!existe) {
-                    mensagemErro.textContent =
-                        "A palavra '" + palavra +
-                        "' não existe no texto mestre.";
-
-                    input.value = "";
-                    return;
-                }
-
-                // Verificar se a palavra já foi descoberta.
-
-                if (
-                    palavrasDescobertas.includes(palavra) ||
-                    palavrasValidadas.includes(palavra)
-                ) {
-                    mensagemErro.textContent =
-                        "A palavra '" + palavra +
-                        "' já foi usada anteriormente.";
-
-                    input.value = "";
-                    return;
-                }
-
-                palavrasValidadas.push(palavra);
-            }
-
-            if (palavrasValidadas.length === 0) {
-                return;
-            }
-
-            // Registrar as palavras descobertas.
-
-            palavrasValidadas.forEach(palavra => {
-
-                palavrasDescobertas.push(palavra);
-
-                const item = document.createElement("li");
-
-                item.textContent = palavra;
-
-                listaPalavras.appendChild(item);
-            });
-
-            // Atualizar as caixinhas.
-
-            renderizarTextoMestre();
-
-            // Limpar o campo.
-
-            input.value = "";
         });
 
-
-        // 11. INICIAR O PROGRAMA
-
-        renderizarTextoMestre();
-
+        // Função para LER os dados da Planilha e jogar na tela (CORRIGIDA)
+        function carregarDados() {
+            lista.innerHTML = "<li>Carregando histórico...</li>";
+            
+            //fetch(URL_LEITURA_PLANILHA)
+            // Substitua a linha antiga por esta:
+            fetch(URL_LEITURA_PLANILHA + "&cachebust=" + Date.now())
+            .then(res => res.text())
+            .then(textotsv => {
+                lista.innerHTML = "";
+                
+                // CORREÇÃO: Divide as linhas aceitando tanto \n quanto \r\n
+                const linhas = textotsv.split(/\r?\n/);
+                
+                let temDados = false;
+                
+                // Começa do 1 para pular os títulos da planilha ("Carimbo de data/hora" e "Texto")
+                for (let i = 1; i < linhas.length; i++) {
+                    if (linhas[i].trim() === "") continue; // Ignora linhas em branco
+                    
+                    const colunas = linhas[i].split("\t");
+                    
+                    // Se a segunda coluna (índice 1) existir e não estiver vazia
+                    if (colunas[1] && colunas[1].trim() !== "") {
+                        const li = document.createElement('li');
+                        li.textContent = colunas[1].trim(); // Adiciona o texto enviado
+                        lista.insertBefore(li, lista.firstChild); // Coloca o mais recente no topo
+                        temDados = true;
+                    }
+                }
+                
+                if (!temDados) {
+                    lista.innerHTML = "<li>Nenhum texto salvo ainda.</li>";
+                }
+            })
+            .catch(err => {
+                lista.innerHTML = "<li>Erro ao carregar os dados. Verifique a publicação da planilha.</li>";
+                console.error(err);
+            });
+        }
     </script>
-
 </body>
 </html>
