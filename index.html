@@ -1,11 +1,13 @@
 <!DOCTYPE html>
+<!-- sistema baseado primeira versao transcrisao para salvar temas estudo -->
 <html lang="pt-BR">
-<head> 
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Salvar e Visualizar com Planilha</title>
     <style>
         body { font-family: Arial, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; }
+        .label-data { display: block; margin-bottom: 15px; font-weight: bold; color: #555; font-size: 15px; }
         input { width: 65%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; }
         button:hover { background-color: #0056b3; }
@@ -16,6 +18,7 @@
 <body>
 
     <h2>Salvar Texto no Banco de Dados (Planilha)</h2>
+    <label id="labelDataAtual" class="label-data"></label>
     
     <input type="text" id="meuInput" placeholder="Digite algo aqui...">
     <button id="btnEnviar">Enviar</button>
@@ -34,9 +37,49 @@
         const input = document.getElementById('meuInput');
         const botao = document.getElementById('btnEnviar');
         const lista = document.getElementById('listaTextos');
+        const labelDataAtual = document.getElementById('labelDataAtual');
 
-        // Carrega os dados assim que abre a página
-        window.onload = carregarDados;
+        // Retorna a data atual no formato DD/MM/AAAA
+        function obterDataHojeFormatada() {
+            const hoje = new Date();
+            const dia = String(hoje.getDate()).padStart(2, '0');
+            const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+            const ano = hoje.getFullYear();
+            return `${dia}/${mes}/${ano}`;
+        }
+
+        // Normaliza a data vinda da planilha para DD/MM/AAAA (suporta DD/MM/AAAA e AAAA-MM-DD)
+        function extrairDataRegistro(carimboDataHora) {
+            if (!carimboDataHora) return "";
+            const apenasData = carimboDataHora.trim().split(" ")[0];
+
+            // Formato padrão Google Forms PT-BR: DD/MM/AAAA (ou D/M/AAAA)
+            if (apenasData.includes("/")) {
+                const partes = apenasData.split("/");
+                if (partes.length === 3) {
+                    const dia = partes[0].padStart(2, '0');
+                    const mes = partes[1].padStart(2, '0');
+                    const ano = partes[2];
+                    return `${dia}/${mes}/${ano}`;
+                }
+            }
+
+            // Formato ISO: AAAA-MM-DD
+            if (apenasData.includes("-")) {
+                const partes = apenasData.split("-");
+                if (partes.length === 3) {
+                    return `${partes[2].padStart(2, '0')}/${partes[1].padStart(2, '0')}/${partes[0]}`;
+                }
+            }
+
+            return apenasData;
+        }
+
+        // Inicializa a label com o dia atual e carrega os dados
+        window.onload = () => {
+            labelDataAtual.textContent = "Data atual: " + obterDataHojeFormatada();
+            carregarDados();
+        };
 
         // Função para ENVIAR o texto
         botao.addEventListener('click', () => {
@@ -68,43 +111,36 @@
             }
         });
 
-        // Função para LER os dados da Planilha e jogar na tela (CORRIGIDA)
+        // Função para LER os dados da Planilha e exibir apenas os do dia atual
         function carregarDados() {
-            lista.innerHTML = "<li>Carregando histórico...</li>";
-            
-            //fetch(URL_LEITURA_PLANILHA)
-            // Substitua a linha antiga por esta:
+            const dataHoje = obterDataHojeFormatada();
+            labelDataAtual.textContent = "Data atual: " + dataHoje;
+
             fetch(URL_LEITURA_PLANILHA + "&cachebust=" + Date.now())
             .then(res => res.text())
             .then(textotsv => {
                 lista.innerHTML = "";
                 
-                // CORREÇÃO: Divide as linhas aceitando tanto \n quanto \r\n
                 const linhas = textotsv.split(/\r?\n/);
-                
-                let temDados = false;
                 
                 // Começa do 1 para pular os títulos da planilha ("Carimbo de data/hora" e "Texto")
                 for (let i = 1; i < linhas.length; i++) {
-                    if (linhas[i].trim() === "") continue; // Ignora linhas em branco
+                    if (linhas[i].trim() === "") continue;
                     
                     const colunas = linhas[i].split("\t");
+                    const dataLinha = extrairDataRegistro(colunas[0]);
                     
-                    // Se a segunda coluna (índice 1) existir e não estiver vazia
-                    if (colunas[1] && colunas[1].trim() !== "") {
+                    // Verifica se a data da linha é igual à data atual e se há texto na segunda coluna
+                    if (dataLinha === dataHoje && colunas[1] && colunas[1].trim() !== "") {
                         const li = document.createElement('li');
-                        li.textContent = colunas[1].trim(); // Adiciona o texto enviado
+                        li.textContent = colunas[1].trim();
                         lista.insertBefore(li, lista.firstChild); // Coloca o mais recente no topo
-                        temDados = true;
                     }
                 }
-                
-                if (!temDados) {
-                    lista.innerHTML = "<li>Nenhum texto salvo ainda.</li>";
-                }
+                // Se nenhum dado for do dia atual, a lista permanece vazia (não aparece nada)
             })
             .catch(err => {
-                lista.innerHTML = "<li>Erro ao carregar os dados. Verifique a publicação da planilha.</li>";
+                lista.innerHTML = "";
                 console.error(err);
             });
         }
