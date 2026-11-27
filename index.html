@@ -39,13 +39,16 @@
         const lista = document.getElementById('listaTextos');
         const labelDataAtual = document.getElementById('labelDataAtual');
 
-        // Retorna a data atual no formato DD/MM/AAAA
+        // Retorna a data atual FORÇANDO o fuso horário de Brasília (America/Sao_Paulo) no formato DD/MM/AAAA
         function obterDataHojeFormatada() {
             const hoje = new Date();
-            const dia = String(hoje.getDate()).padStart(2, '0');
-            const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-            const ano = hoje.getFullYear();
-            return `${dia}/${mes}/${ano}`;
+            const formatador = new Intl.DateTimeFormat('pt-BR', {
+                timeZone: 'America/Sao_Paulo',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+            return formatador.format(hoje);
         }
 
         // Normaliza a data vinda da planilha para DD/MM/AAAA (suporta DD/MM/AAAA e AAAA-MM-DD)
@@ -77,7 +80,7 @@
 
         // Inicializa a label com o dia atual e carrega os dados
         window.onload = () => {
-            labelDataAtual.textContent = "Data atual: " + obterDataHojeFormatada();
+            labelDataAtual.textContent = "Data atual (Brasília): " + obterDataHojeFormatada();
             carregarDados();
         };
 
@@ -101,7 +104,7 @@
                     botao.innerText = "Enviar";
                     botao.disabled = false;
                     // Recarrega a lista na tela logo após enviar
-                    setTimeout(carregarDados, 1000); 
+                    setTimeout(carregarDados, 1500); 
                 })
                 .catch(erro => {
                     alert("Erro ao enviar.");
@@ -114,7 +117,7 @@
         // Função para LER os dados da Planilha e exibir apenas os do dia atual
         function carregarDados() {
             const dataHoje = obterDataHojeFormatada();
-            labelDataAtual.textContent = "Data atual: " + dataHoje;
+            labelDataAtual.textContent = "Data atual (Brasília): " + dataHoje;
 
             fetch(URL_LEITURA_PLANILHA + "&cachebust=" + Date.now())
             .then(res => res.text())
@@ -137,7 +140,6 @@
                         lista.insertBefore(li, lista.firstChild); // Coloca o mais recente no topo
                     }
                 }
-                // Se nenhum dado for do dia atual, a lista permanece vazia (não aparece nada)
             })
             .catch(err => {
                 lista.innerHTML = "";
